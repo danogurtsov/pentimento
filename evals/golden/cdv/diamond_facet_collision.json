@@ -1,0 +1,19 @@
+{
+  "fixture_dir": "tests/fixtures/diamond_facet_collision",
+  "visibility": "private",
+  "expected_units": [
+    {
+      "unit_id": "Diamond",
+      "node_type": "token",
+      "proxy_kind": "diamond",
+      "merged_from": ["Diamond", "SharedFacet"],
+      "merged_facets": ["SharedFacet"]
+    },
+    {
+      "unit_id": "SharedFacet@SharedFacet",
+      "node_type": "oracle",
+      "proxy_kind": "none",
+      "merged_from": ["SharedFacet"]
+    }
+  ]
+}

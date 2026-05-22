@@ -1,0 +1,39 @@
+# internal planning — NOT published
+research/
+
+# secrets / env
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# tooling caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# run artifacts
+out/
+cache/
+
+# eval run artifacts
+evals/report/
+
+# solc scratch output from converter runs
+tests/fixtures/**/out/
+
+# externally fetched ground-truth corpora — pinned by commit in scripts/fetch_fixtures.sh,
+# never vendored (see evals/golden/detection/README.md)
+_external/
+
+# forge-std fetched for the private held-out fixture's own PoC test — same
+# fetched-not-vendored principle, no need to commit a third-party dependency
+evals/golden/detection/private/*/lib/

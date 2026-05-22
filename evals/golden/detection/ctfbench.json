@@ -1,0 +1,70 @@
+{
+  "source": {
+    "repo": "https://github.com/auditdbio/ctfbench",
+    "commit": "766b399b8932608055678102604542c0698066c6",
+    "website": "https://ctfbench.com/",
+    "license": "checked: LICENSE file present",
+    "visibility": "public",
+    "contamination_note": "public benchmark with a real methodology article and published tool comparisons (Savant/Slither/GPT-o3-mini/DeepSeek R1/...) — treat recall as [contamination-risk]. NOT a teaching CTF despite the name (see ../README.md \"Why not Ethernaut\") — purpose-built for VDR/OI tool scoring, actively used by real commercial tools.",
+    "note": "Small (7 vulnerable + 4 clean), organized by security-category folder, each with a verbatim ground-truth 'synopsis' text file we quote directly below — not paraphrased.",
+    "unique_value": "the ONLY source in this corpus so far with matched clean/vulnerable PAIRS of the same contract (benchmark_data/contracts/no_errors/ has fixed versions of Lending/Voting/Vesting/MerkleDrop) — this is exactly what's needed to measure Overreporting Index (does a detector wrongly flag the FIXED version too), which none of our other sources provide."
+  },
+  "cases": [
+    {
+      "id": "ctfb-lending",
+      "file": "benchmark_data/contracts/with_errors/arithmetic_security/Lending.sol",
+      "clean_counterpart": "benchmark_data/contracts/no_errors/Lending.sol",
+      "vuln_class": "arithmetic-precision-loss",
+      "synopsis_verbatim": "`uint256 x = INTEREST_RATE_PER_SECOND * timeElapsed / scale;` Here we do not need division by scale, because `timeElapsed` is integer, and x is decimal.",
+      "verified_from_source": true
+    },
+    {
+      "id": "ctfb-voting",
+      "file": "benchmark_data/contracts/with_errors/access_control/Voting.sol",
+      "clean_counterpart": "benchmark_data/contracts/no_errors/Voting.sol",
+      "vuln_class": "missing-access-control",
+      "synopsis_verbatim": "The contract lacks access checks for critical functions (setOwner). This allows any user to call these functions and change important voting parameters, which can lead to unauthorized changes to the contract logic.",
+      "verified_from_source": true
+    },
+    {
+      "id": "ctfb-vesting",
+      "file": "benchmark_data/contracts/with_errors/data_structure_security/Vesting.sol",
+      "clean_counterpart": "benchmark_data/contracts/no_errors/Vesting.sol",
+      "vuln_class": "calldata-memory-parameter-mismatch",
+      "synopsis_verbatim": "Internal 2nd parameter in `processRelease` is parsed as calldata, which is wrong.",
+      "verified_from_source": true
+    },
+    {
+      "id": "ctfb-oracle-flashloan",
+      "file": "benchmark_data/contracts/with_errors/cryptoeconomic_security/OracleFlashLoan.sol",
+      "clean_counterpart": null,
+      "vuln_class": "oracle-manipulation-flash-loan",
+      "synopsis_verbatim": "Attacker can use flashloan to manipulate the price of the token and then mint unlimited tokens.",
+      "verified_from_source": true
+    },
+    {
+      "id": "ctfb-airdrop-gas",
+      "file": "benchmark_data/contracts/with_errors/gas_security/Airdrop.sol",
+      "clean_counterpart": null,
+      "vuln_class": "unbounded-loop-dos",
+      "synopsis_verbatim": "The vulnerability in this contract arises from the unbounded loop in the distribute() function. As the number of participants increases, the loop may require more gas than what is available in a single transaction, leading to an out-of-gas error — a denial-of-service condition where tokens are not distributed to participants.",
+      "verified_from_source": true
+    },
+    {
+      "id": "ctfb-supertoken-selftransfer",
+      "file": "benchmark_data/contracts/with_errors/boundary_condition/SuperToken.sol",
+      "clean_counterpart": null,
+      "vuln_class": "self-transfer-balance-inflation",
+      "synopsis_verbatim": "The `_transfer` function contains a critical self-transfer vulnerability allowing users to inflate their balance by transferring to themselves — improper handling when `_from == _to`, enabling attackers to mint unlimited tokens.",
+      "verified_from_source": true
+    },
+    {
+      "id": "ctfb-merkledrop-collision",
+      "file": "benchmark_data/contracts/with_errors/privacy_cryto_security/MerkleDrop.sol",
+      "clean_counterpart": "benchmark_data/contracts/no_errors/MerkleDrop.sol",
+      "vuln_class": "merkle-proof-collision",
+      "synopsis_verbatim": "Collision attack in MerkleDrop allows claiming all tokens from the contract.",
+      "verified_from_source": true
+    }
+  ]
+}

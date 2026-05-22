@@ -1,0 +1,7 @@
+{
+  "fixture_dir": "tests/fixtures/oracle_shape",
+  "visibility": "private",
+  "expected_units": [
+    { "unit_id": "PriceOracle", "node_type": "oracle", "proxy_kind": "none", "merged_from": ["PriceOracle"] }
+  ]
+}

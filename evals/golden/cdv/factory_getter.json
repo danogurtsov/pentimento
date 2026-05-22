@@ -1,0 +1,21 @@
+{
+  "fixture_dir": "tests/fixtures/factory_getter",
+  "visibility": "private",
+  "expected_units": [
+    {
+      "unit_id": "Factory",
+      "node_type": "factory",
+      "proxy_kind": "none",
+      "merged_from": ["Factory"],
+      "factory_creates": "Pool",
+      "factory_enumeration": "getter"
+    },
+    {
+      "unit_id": "Pool",
+      "node_type": "unknown",
+      "proxy_kind": "none",
+      "merged_from": ["Pool"],
+      "factory_of": "Factory"
+    }
+  ]
+}

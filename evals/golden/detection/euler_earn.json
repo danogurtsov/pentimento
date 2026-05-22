@@ -1,0 +1,172 @@
+{
+  "source": {
+    "repo": "https://github.com/euler-xyz/euler-earn",
+    "review_commit": "12c0220226cdefc8fee2f229c5e75bd656c7b2b5",
+    "fixes_commit": "b95775f4235fe4ea738dde226524d25f317d987c",
+    "license": "GPL-2.0 (checked: LICENSE file present) — fetched not vendored, same pinned-commit reproducibility principle as the other sources here.",
+    "visibility": "public",
+    "audit_report": "https://github.com/euler-xyz/euler-earn/blob/master/audits/Pashov_Audit_Group_report.pdf",
+    "audit_firm": "Pashov Audit Group",
+    "audit_dates": "2025-07-25 to 2025-07-30",
+    "scope": ["EulerEarn.sol", "EulerEarnFactory.sol", "PublicAllocator.sol", "ConstantsLib.sol", "ErrorsLib.sol", "EventsLib.sol", "PendingLib.sol", "SafeERC20Permit2Lib.sol", "UtilsLib.sol", "interfaces/"],
+    "contamination_note": "public audit report, PDF fetched and read directly from the project's own repo (not paraphrased from a secondary source) — treat recall measured against it as [contamination-risk] the same as every other public source here, not proof of novel-detection capability.",
+    "note": "EulerEarn is a MetaMorpho-based (ERC-4626-of-ERC-4626-vaults) allocator — chosen for this corpus specifically because it's a real, small, well-scoped, production Solidity project (not a synthetic teaching fixture) with an official, fully public, line-item audit report straight from the project's own GitHub repo, independently re-derivable by anyone (report PDF + exact review commit hash), rather than relying on a secondary summary. A second audit (Sigma Prime, commit 558b15b, https://github.com/euler-xyz/euler-earn/blob/master/audits/Sigma_Prime_EulerEarn_report.pdf) covered the same scope and found only 5 Informational issues (no Medium/Low/High) — not catalogued as separate cases here since none carry independent security severity. A third audit (Certora, formal verification) is listed in the project's docs (https://docs.euler.finance/security/earn-audits/) but wasn't fetched/read this session.",
+    "distinct_from_moo9000_comparison": "This project was originally queued in this corpus after Mikko Ohtamaa (@moo9000) publicly compared 7 Claude Code audit-skill sets against a downloaded-from-Etherscan EulerEarn snapshot in March 2026, reporting a 15-finding/7-tool heatmap (trailofbits 11/15, quillai 8/15, ...). That original X/Twitter thread wasn't independently re-fetchable, so its specific 15-finding/per-tool numbers are NOT re-verified or reproduced below — they're cited as-is, not as fresh evidence. What follows instead is the project's own OFFICIAL, fully public, directly-sourced Pashov Audit Group report against the same real contract family — stronger ground truth (exact commit hash, full written descriptions, project's own acknowledgement/fix status per finding) than a tweet screenshot could offer, even though the specific finding COUNT differs from moo9000's 15 (14 here, all from Pashov; his snapshot and finding set were not confirmed to be identical)."
+  },
+  "cases": [
+    {
+      "id": "euler-earn-m01",
+      "finding_id": "M-01",
+      "title": "Share tracking issue between PublicAllocator and EulerEarn affects reallocations",
+      "severity": "medium",
+      "status": "resolved",
+      "vuln_class": "state-desync-internal-vs-real-accounting",
+      "description": "PublicAllocator.reallocateTo() computes withdrawable assets from a strategy's REAL on-chain share balance (id.maxWithdraw(vault)), while EulerEarn.reallocate() uses its own INTERNAL share tracking (config[id].balance) for the actual transfer. If strategy shares are ever transferred directly to the vault (bypassing EulerEarn's own accounting), the two sources of truth diverge: PublicAllocator computes flow-cap updates from one number while EulerEarn moves a different amount, corrupting flow caps and letting allocators reallocate a different amount than requested.",
+      "verified_from_source": true,
+      "source_richness": "high — full description, annotated before/after code snippets, and a reproducible forge test (testRellocateToBug) transcribed directly from the report"
+    },
+    {
+      "id": "euler-earn-l01",
+      "finding_id": "L-01",
+      "title": "createEulerEarn() is vulnerable to frontrunning",
+      "severity": "low",
+      "status": "acknowledged",
+      "vuln_class": "create2-salt-frontrunning-dos",
+      "description": "EulerEarnFactory.createEulerEarn() deploys a new vault via CREATE2 with a user-supplied salt that is not tied to msg.sender, so an attacker can frontrun the deployment tx and occupy the same computed address first, griefing the original deployer by causing their transaction to revert. Euler's response: acknowledged, kept as is.",
+      "verified_from_source": true,
+      "source_richness": "high — full description + the exact createEulerEarn() function body quoted in the report"
+    },
+    {
+      "id": "euler-earn-l02",
+      "finding_id": "L-02",
+      "title": "maxWithdraw() underestimates assets for the feeRecipient",
+      "severity": "low",
+      "status": "acknowledged",
+      "vuln_class": "accounting-fee-shares-excluded-from-balance",
+      "description": "EulerEarn.maxWithdraw() accrues fees via _accruedFeeAndAssets() then converts the owner's balanceOf(owner) to assets, but when owner == feeRecipient, the just-accrued feeShares are tracked separately and not yet reflected in balanceOf(feeRecipient) — so the function underestimates how much the fee recipient can actually withdraw. Euler's own comment notes balanceOf(feeRecipient) itself has the same underlying gap (doesn't calculate fees either).",
+      "verified_from_source": true,
+      "source_richness": "high — full description + the exact _maxWithdraw() internal function body quoted"
+    },
+    {
+      "id": "euler-earn-l03",
+      "finding_id": "L-03",
+      "title": "Not revoking USDT approval when permit2 == address(0)",
+      "severity": "low",
+      "status": "resolved",
+      "vuln_class": "dangling-token-approval-usdt-quirk",
+      "description": "SafeERC20Permit2Lib.revokeApprovalWithPermit2() falls back to a plain token.approve(spender, 1) wrapped in try/catch when permit2 is unset. USDT requires the allowance to be reset to zero before it can be set to a new non-zero value, so this approve() silently reverts (swallowed by the catch) and the to-be-removed strategy vault keeps an active USDT allowance. Fixed by switching to forceApprove().",
+      "verified_from_source": true,
+      "source_richness": "high — full description + before/after diff of the fix"
+    },
+    {
+      "id": "euler-earn-l04",
+      "finding_id": "L-04",
+      "title": "Missing slippage and deadline protection exposes users to pricing risks",
+      "severity": "low",
+      "status": "acknowledged",
+      "vuln_class": "missing-slippage-deadline-params",
+      "description": "deposit()/mint()/withdraw()/redeem() interact with multiple underlying ERC-4626 strategy vaults with no minShares/maxShares/minAssets/maxAssets bound and no deadline, so a user's assets can be split across strategies at varying share prices, or a stuck mempool transaction can execute against a much later, worse price, with no way for the caller to bound the outcome.",
+      "verified_from_source": true,
+      "source_richness": "high — full description of both the slippage-risk and no-deadline-enforcement sub-cases"
+    },
+    {
+      "id": "euler-earn-l05",
+      "finding_id": "L-05",
+      "title": "Frontrunning in vault enabling process",
+      "severity": "low",
+      "status": "acknowledged",
+      "vuln_class": "share-price-manipulation-via-donation-frontrun",
+      "description": "When a curator re-adds a forcefully-removed vault (funds not withdrawn) or adds a vault that already holds funds, _setCap() increases total tracked assets directly without minting new shares. A user who deposits just before the vault is re-added/enabled captures a disproportionate share of assets relative to what they deposited, extracting risk-free profit by frontrunning the activation. Euler's response: same behaviour as the original (Metamorpho-derived) codebase, kept as is.",
+      "verified_from_source": true,
+      "source_richness": "high — full description + the exact _setCap() snippet quoted"
+    },
+    {
+      "id": "euler-earn-l06",
+      "finding_id": "L-06",
+      "title": "setFlowCaps() can be front-run to increase effective cap usage",
+      "severity": "low",
+      "status": "acknowledged",
+      "vuln_class": "front-runnable-config-update-cap-bypass",
+      "description": "PublicAllocator.setFlowCaps() directly overwrites FlowCaps values. An attacker who front-runs an admin's cap-reduction update with a reallocateTo() that fully consumes the OLD (higher) cap, then lets the admin's update apply the NEW cap on top, ends up moving more total volume through the vault than the admin ever intended (worked example in the report: intended max 250 ends up allowing 280+250=530 total).",
+      "verified_from_source": true,
+      "source_richness": "high — full description + the exact setFlowCaps() body and a worked numeric example from the report"
+    },
+    {
+      "id": "euler-earn-l07",
+      "finding_id": "L-07",
+      "title": "Privileged roles accept invalid EVC sub-accounts",
+      "severity": "low",
+      "status": "acknowledged",
+      "vuln_class": "access-control-evc-subaccount-validation-gap",
+      "description": "EulerEarn authenticates via the Ethereum Vault Connector (EVC), which supports sub-accounts that can hold shares but can never independently call privileged owner/admin/curator functions (their private keys are unknown). Functions gated by onlyAdminOrVaultOwner/onlyCuratorRole/etc already correctly block sub-accounts from CALLING them, but setAdmin/setCurator/setOwner never validate that the ADDRESS BEING ASSIGNED a privileged role isn't itself an EVC sub-account — so a sub-account can be granted a role it can then never actually exercise, silently bricking that role assignment. The report also notes an inconsistency: EulerEarn::setFee (gated onlyOwner) resolves the caller via _msgSender(), which bypasses this sub-account check differently than PublicAllocator::setFee (gated onlyAdminOrVaultOwner) does.",
+      "verified_from_source": true,
+      "source_richness": "high — full description + setAdmin() body + the suggested evc.getAccountOwner() guard quoted from _withdraw()"
+    },
+    {
+      "id": "euler-earn-l08",
+      "finding_id": "L-08",
+      "title": "Edge case allows owner to covertly steal assets from users",
+      "severity": "low",
+      "status": "acknowledged (documented as currently blocked by real-world preconditions)",
+      "vuln_class": "read-only-reentrancy-fee-inflation-drain",
+      "description": "Report's own precondition note: this exploit requires a strategy vault that behaves like an EVK vault but WITHOUT its read-only reentrancy protection (nonReentrantView), and requires a soon-to-be-malicious vault to first pass verification as benign before its hook is upgraded to malicious — the report states current EulerEarn-compatible strategies (real EVK vaults) block this today, so the report treats it as a forward-looking/edge-case risk. Mechanism: EulerEarn.setFee/setFeeRecipient lack reentrancy protection, and _withdraw() optimistically updates lastTotalAssets BEFORE the external call to the strategy vault. A malicious strategy vault's hook can reenter during withdraw() to call setFee(), which triggers interest accrual computed against the stale (pre-withdrawal) lastTotalAssets, inflating the apparent interest and minting excess fee shares to the feeRecipient (the attacker, having set themselves as feeRecipient beforehand) — who can then redeem those excess shares to drain real assets from other depositors. The report includes a complete numbered exploit sequence and a full Foundry PoC (malicious IHookTarget hook + integration test) demonstrating the drain end-to-end.",
+      "verified_from_source": true,
+      "source_richness": "high — full multi-page description, root-cause code (_withdraw ordering, setFee accrual math), and a complete transcribed Foundry PoC with a malicious hook contract"
+    },
+    {
+      "id": "euler-earn-l09",
+      "finding_id": "L-09",
+      "title": "Re-adding removed vault assets duplicates accounting in lastTotalAssets",
+      "severity": "low",
+      "status": "acknowledged",
+      "vuln_class": "double-counting-on-vault-re-add",
+      "description": "When a strategy vault is force-removed while it still holds unrecoverable assets, those assets are folded into the lostAssets accounting inside _accruedFeeAndAssets(). If that same vault is LATER re-added, it is treated as a brand-new strategy and its config[id].balance is initialized directly from its current on-chain balance — which still contains those same previously-lost shares, so they get counted a second time in totalAssets(), inflating the vault's share price and causing new depositors (mint) to receive fewer shares than they should.",
+      "verified_from_source": true,
+      "source_richness": "high — full description + _accruedFeeAndAssets()/_setCap() code showing exactly where the double count enters"
+    },
+    {
+      "id": "euler-earn-l10",
+      "finding_id": "L-10",
+      "title": "Dust shares prevent immediate strategy vault removal due to inconsistent checks",
+      "severity": "low",
+      "status": "open (no Euler comment recorded in the report for this finding)",
+      "vuln_class": "inconsistent-emptiness-check-rounding",
+      "description": "reallocate() treats a strategy vault as \"empty\" (redeemable assets == 0, via previewRedeem rounding down) while updateWithdrawQueue()'s immediate-removal path checks raw config[id].balance != 0 instead — so at a low enough share price, a vault can hold dust shares that round to 0 redeemable assets (reallocate() sees it as already empty) yet still block immediate removal via updateWithdrawQueue() (which sees a nonzero balance), forcing removal through the slower timelocked path instead of the intended immediate one.",
+      "verified_from_source": true,
+      "source_richness": "high — full description + both the reallocate() and updateWithdrawQueue() function bodies quoted side by side"
+    },
+    {
+      "id": "euler-earn-l11",
+      "finding_id": "L-11",
+      "title": "Flash loan attack reallocates liquidity to riskier strategy vaults",
+      "severity": "low",
+      "status": "acknowledged",
+      "vuln_class": "flash-loan-forced-reallocation",
+      "description": "_supplyStrategy() fills the supplyQueue's strategy vaults in order up to each one's cap, spilling overflow into the next. A flash-loan-funded attacker can deposit a large amount to intentionally overflow a large, safe strategy's cap into a smaller, riskier strategy, then immediately withdraw in the same transaction, leaving the riskier strategy holding a disproportionate share of the vault's real liquidity (worked example: strategy A cap 100M holding 20M, strategy B cap 20M holding 1M; a 99M deposit pushes B to its cap before A's headroom is used, then the attacker withdraws, leaving B overweighted).",
+      "verified_from_source": true,
+      "source_richness": "high — full description + _supplyStrategy() code + a worked numeric example"
+    },
+    {
+      "id": "euler-earn-l12",
+      "finding_id": "L-12",
+      "title": "Rounding in _expectedSupplyAssets() may exceed supplyCap",
+      "severity": "low",
+      "status": "acknowledged",
+      "vuln_class": "rounding-direction-cap-bypass",
+      "description": "_supplyStrategy() computes toSupply as min(supplyCap - _expectedSupplyAssets(id), ...), where _expectedSupplyAssets() rounds DOWN (via previewRedeem's floor rounding) while it needs to round UP to stay conservative about how much cap headroom remains — so the strategy vault's actual balance can end up exceeding its configured supplyCap immediately after a deposit. Euler's own comment notes interest accrual can also exceed the cap in the very next block regardless, so this specific rounding gap is a minor addition to an already-accepted looser bound.",
+      "verified_from_source": true,
+      "source_richness": "high — full description + _supplyStrategy()/_expectedSupplyAssets()/previewRedeem() code chain quoted"
+    },
+    {
+      "id": "euler-earn-l13",
+      "finding_id": "L-13",
+      "title": "Strategy losses can be masked by interest gains from other strategies",
+      "severity": "low",
+      "status": "acknowledged (\"behaviour is by design\")",
+      "vuln_class": "netted-pnl-hides-per-strategy-loss",
+      "description": "_accruedFeeAndAssets() computes lostAssets only from the NET change in aggregate totalAssets() across every strategy in the withdraw queue — if one strategy loses 0.1e18 while another simultaneously gains 0.25e18 in interest, the net totalAssets() increases, so lostAssets is never updated even though a real loss occurred in the first strategy. This under-collects fees correctly on realized losses (feeRecipient effectively still gets fee shares minted off the masked gain) and permanently hides the per-strategy loss from lostAssets, which the report notes should isolate user losses from vault underperformance but doesn't. Euler's response explicitly frames this as by-design, not a bug to fix.",
+      "verified_from_source": true,
+      "source_richness": "high — full description + accounting code + a complete transcribed Foundry PoC (testLostAssetsMaskedByInterestGain) demonstrating the masking with two strategies"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "fixture_dir": "tests/fixtures/proxy_impl",
+  "visibility": "private",
+  "expected_units": [
+    {
+      "unit_id": "Proxy",
+      "node_type": "token",
+      "proxy_kind": "eip1967_uups",
+      "merged_from": ["Proxy", "Implementation"]
+    }
+  ]
+}

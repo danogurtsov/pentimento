@@ -1,0 +1,22 @@
+{
+  "source": {
+    "repo": "none — hand-authored this session, never published anywhere",
+    "commit": "n/a",
+    "license": "n/a — this repo's own code, not a third-party fixture",
+    "visibility": "private — the third entry in this corpus with no [contamination-risk] caveat (see private_linear_vesting_escrow.json and private_timelocked_multisig.json for the first two)",
+    "note": "Deliberately a THIRD, different bug class/domain than the first two private fixtures (LinearVestingEscrow's self-referential accounting formula; TimeLockedMultisig's missing per-signer vote deduplication) — a signature-replay bug in an off-chain-voucher/on-chain-redemption contract, chosen specifically to exercise `detection/engine_selection.py`'s SIGNATURE_REPLAY unconditional layer, never tested against a private fixture before now. `SignatureVoucherClaim.sol` was designed and written from scratch, with ONE deliberately inserted, non-obvious bug not copied from any known incident. CDV classifies this unit as NodeType.UNKNOWN (correctly — a voucher-redemption contract isn't a token/vault/multisig/etc.), meaning the model found this bug with only the generic engine set plus the always-on unconditional layers, no type-specific checklist boost."
+  },
+  "cases": [
+    {
+      "id": "private-signature-voucher-claim-01",
+      "finding_id": "SVC-01",
+      "title": "claim() never records voucher redemption, allowing unlimited signature replay",
+      "severity": "critical",
+      "status": "confirmed by an executable Foundry PoC (test/SignatureVoucherClaimExploit.t.sol, passing)",
+      "vuln_class": "signature-replay",
+      "description": "SignatureVoucherClaim.claim() verifies that `signature` is a valid admin signature over `(recipient, amount, voucherId, address(this))`, then immediately pays out `amount` in ETH to `recipient` — but never records, by voucherId or by the signature/digest itself, that this voucher has already been redeemed. The exact same signed voucher therefore remains valid forever and can be submitted to `claim()` an unlimited number of times, each call paying out the full `amount` again, draining the contract far beyond the single payout the admin actually authorized. This is a pure missing-replay-protection bug (no nonce, no used-voucher mapping, no expiry) — the signature verification itself is correct.",
+      "verified_from_source": true,
+      "source_richness": "high — the bug lives in this repo's own 42-line contract, executable PoC included (test/SignatureVoucherClaimExploit.t.sol), exact scenario: an admin signs one voucher authorizing a 1 ETH payout, and the same signature is submitted 4 times, draining 4 ETH from a contract funded with 10 ETH, when only 1 ETH was ever authorized."
+    }
+  ]
+}

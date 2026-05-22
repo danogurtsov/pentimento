@@ -1,0 +1,81 @@
+{
+  "source": {
+    "repo": "https://github.com/SunWeb3Sec/DeFiVulnLabs",
+    "commit": "f61f6ee5c3f89eb7685030647f8df19997596f8b",
+    "license": "none found in repo — not vendored, fetched via scripts/fetch_fixtures.sh into _external/ (gitignored)",
+    "visibility": "public",
+    "contamination_note": "public, widely-referenced repo (6k+ stars) — treat any recall measured against it as [contamination-risk], not proof of novel-detection capability. See the private_*.json fixtures for a contamination-free counterpart."
+  },
+  "cases": [
+    {
+      "id": "dvl-reentrancy",
+      "file": "src/test/Reentrancy.sol",
+      "vuln_class": "reentrancy",
+      "description": "Classic single-function reentrancy — EtherStore lets an attacker withdraw more than entitled by re-entering before balance is updated.",
+      "verified_from_source": true
+    },
+    {
+      "id": "dvl-read-only-reentrancy",
+      "file": "src/test/ReadOnlyReentrancy.sol",
+      "vuln_class": "read-only-reentrancy",
+      "description": "A view function on contract B (derived from Curve-style pool A) returns stale state during A's mid-execution callback — the read-only reentrancy class.",
+      "verified_from_source": true
+    },
+    {
+      "id": "dvl-delegatecall",
+      "file": "src/test/Delegatecall.sol",
+      "vuln_class": "delegatecall-storage-collision",
+      "description": "Proxy.owner lives in slot0; delegatecall to an untrusted Delegate contract lets an attacker overwrite slot0 via the Delegate's own unrelated storage layout, hijacking ownership.",
+      "verified_from_source": true
+    },
+    {
+      "id": "dvl-storage-collision",
+      "file": "src/test/Storage-collision.sol",
+      "vuln_class": "delegatecall-storage-collision",
+      "description": "Proxy's implementation-address slot collides with the Logic contract's own state variable (GuestAddress) — classic non-EIP-1967 storage layout collision.",
+      "verified_from_source": true
+    },
+    {
+      "id": "dvl-oracle-stale",
+      "file": "src/test/Oracle-stale.sol",
+      "vuln_class": "oracle-manipulation",
+      "description": "Chainlink ETH/USD feed consumed without a staleness/roundId check — contrasts an unsafe read against a safe one in the same file.",
+      "verified_from_source": true
+    },
+    {
+      "id": "dvl-price-manipulation",
+      "file": "src/test/Price_manipulation.sol",
+      "vuln_class": "oracle-manipulation",
+      "description": "SimpleBank prices collateral off SimplePool's spot reserves — a single-source AMM spot price used as an oracle, manipulable within one transaction.",
+      "verified_from_source": true
+    },
+    {
+      "id": "dvl-first-deposit",
+      "file": "src/test/first-deposit.sol",
+      "vuln_class": "share-inflation-first-depositor",
+      "description": "Classic vault inflation attack: attacker deposits 1 wei then donates directly to inflate the share price, causing the next depositor's shares to round down to a loss — directly matches our own onchain_structural_primitives step2_share_accounting.md research.",
+      "verified_from_source": true
+    },
+    {
+      "id": "dvl-signature-replay",
+      "file": "src/test/SignatureReplay.sol",
+      "vuln_class": "signature-replay",
+      "description": "transferProxy signature scheme; file's own comments note the nonce starts from 0 (\"not a best practice\") — a documented near-miss alongside the replay case itself.",
+      "verified_from_source": true
+    },
+    {
+      "id": "dvl-overflow",
+      "file": "src/test/Overflow.sol",
+      "vuln_class": "arithmetic-overflow",
+      "description": "Requires a pre-0.8.0 pragma explicitly (file comment: solc >=0.8.0 has built-in overflow checks) — tests the case where the checked-arithmetic default is bypassed by compiler version choice.",
+      "verified_from_source": true
+    },
+    {
+      "id": "dvl-selfdestruct",
+      "file": "src/test/Selfdestruct.sol",
+      "vuln_class": "selfdestruct-forced-balance",
+      "description": "EtherGame uses address(this).balance as its win condition; forcing ether in via selfdestruct(attacker-controlled target) desyncs tracked vs actual balance and can brick or grief the game.",
+      "verified_from_source": true
+    }
+  ]
+}

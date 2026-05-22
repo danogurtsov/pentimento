@@ -1,0 +1,22 @@
+{
+  "source": {
+    "repo": "none — hand-authored this session, never published anywhere",
+    "commit": "n/a",
+    "license": "n/a — this repo's own code, not a third-party fixture",
+    "visibility": "private — the second entry in this corpus with no [contamination-risk] caveat (see private_linear_vesting_escrow.json for the first)",
+    "note": "Deliberately a DIFFERENT bug class and domain than the first private fixture (LinearVestingEscrow's self-referential accounting formula) — an access-control/state-tracking bug in an N-of-M multisig, to diversify the kind of evidence this corpus provides, not just repeat the same shape. `TimeLockedMultisig.sol` was designed and written from scratch, with ONE deliberately inserted, non-obvious bug not copied from any known incident. CDV classifies this unit as NodeType.UNKNOWN (no MULTISIG signature group was wired into classify() yet at the time, a separately-documented, real, unrelated limitation later fixed) - meaning the model found this bug with only the weakest, generic engine guidance, not a type-specific access-control checklist boost."
+  },
+  "cases": [
+    {
+      "id": "private-timelocked-multisig-01",
+      "finding_id": "TLM-01",
+      "title": "approve() has no per-signer tracking, letting a single signer reach the threshold alone",
+      "severity": "critical",
+      "status": "confirmed by an executable Foundry PoC (test/TimeLockedMultisigExploit.t.sol, passing)",
+      "vuln_class": "missing-per-actor-vote-deduplication",
+      "description": "TimeLockedMultisig.approve() increments a raw counter (`p.approvals`) on every call from any signer, with NO record of which specific signer already approved a given proposal. A single signer can therefore call approve() repeatedly on the same proposal id and single-handedly drive `p.approvals` up to `threshold`, at which point the timelock clock (`p.readyAt`) starts — completely defeating the purpose of an N-of-M multisig, since zero OTHER signers' consent was ever required or obtained. This is not a reentrancy or access-control-bypass bug in the usual sense (the caller IS a legitimate signer, `onlySigner` correctly gates the call) — it's a missing-deduplication bug: the contract's own state model has no way to distinguish '3 different signers each approved once' from 'one signer approved 3 times'.",
+      "verified_from_source": true,
+      "source_richness": "high — the bug lives in this repo's own 71-line contract, executable PoC included (test/TimeLockedMultisigExploit.t.sol), exact scenario: a 2-of-3 multisig where signerA alone calls approve() twice, reaching the threshold with zero participation from signerB or signerC, then successfully executes a 5 ETH transfer after the timelock elapses."
+    }
+  ]
+}

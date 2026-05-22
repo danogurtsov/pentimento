@@ -1,0 +1,7 @@
+{
+  "fixture_dir": "tests/fixtures/singleton_counter",
+  "visibility": "private",
+  "expected_units": [
+    { "unit_id": "Registry", "node_type": "unknown", "proxy_kind": "none", "merged_from": ["Registry"], "logical_entity_creator": "createEntry" }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "fixture_dir": "tests/fixtures/with_remapping/src",
+  "project_root": "tests/fixtures/with_remapping",
+  "auto_remappings": true,
+  "visibility": "private",
+  "expected_units": [
+    { "unit_id": "MyToken", "node_type": "token", "proxy_kind": "none", "merged_from": ["MyToken"] }
+  ]
+}

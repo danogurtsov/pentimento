@@ -1,0 +1,10 @@
+{
+  "fixture_dir": "tests/fixtures/name_collision",
+  "visibility": "private",
+  "expected_units": [
+    { "unit_id": "Target1", "node_type": "unknown", "proxy_kind": "none", "merged_from": ["A"] },
+    { "unit_id": "Target2", "node_type": "unknown", "proxy_kind": "none", "merged_from": ["B"] },
+    { "unit_id": "Widget@A", "node_type": "unknown", "proxy_kind": "none", "merged_from": ["A"] },
+    { "unit_id": "Widget@B", "node_type": "unknown", "proxy_kind": "none", "merged_from": ["B"] }
+  ]
+}

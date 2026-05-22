@@ -1,0 +1,7 @@
+{
+  "fixture_dir": "tests/fixtures/multitoken",
+  "visibility": "private",
+  "expected_units": [
+    { "unit_id": "MultiToken", "node_type": "token", "proxy_kind": "none", "merged_from": ["MultiToken"] }
+  ]
+}

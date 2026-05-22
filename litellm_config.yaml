@@ -1,0 +1,35 @@
+# Model Gateway config — one choke point for every model call, no agent code talks to
+# anthropic.Client() directly. LiteLLM self-hosted (see docker-compose.yml); Bifrost is the
+# evaluated fallback if a latency/semantic-caching wall is ever hit.
+
+model_list:
+  # pinned to dated snapshots — a moving alias silently drifts quality over time
+  - model_name: pentimento-breadth      # cheap, high-volume roles: breadth-lens, scout
+    litellm_params:
+      model: claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: pentimento-verdict      # expensive, low-volume: strategist, verifiers
+    litellm_params:
+      model: claude-sonnet-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+  # registered here, not called directly — self-hosted inference experiment (see README).
+  # - model_name: pentimento-breadth-selfhost
+  #   litellm_params:
+  #     model: openai/<served-model-name>
+  #     api_base: http://localhost:8000/v1   # vLLM's OpenAI-compatible endpoint
+
+litellm_settings:
+  # semantic caching — catches similar-but-not-identical calls across DIFFERENT projects
+  # (e.g. the same vendored OpenZeppelin base contract showing up in many different repos).
+  # Distinct from Anthropic prompt caching, which only covers exact prefix reuse within one
+  # call sequence — that's requested per-call in agent code, not a gateway setting.
+  cache: true
+  cache_params:
+    type: redis
+    similarity_threshold: 0.8
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # per-role budgets enforced HERE, not in application code.
+  # `make cost-report` (once wired) reads this same store for a segmented dashboard:
+  # spend by phase/role/model, not one blended number.

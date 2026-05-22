@@ -1,0 +1,21 @@
+{
+  "fixture_dir": "tests/fixtures/factory_event",
+  "visibility": "private",
+  "expected_units": [
+    {
+      "unit_id": "Factory",
+      "node_type": "factory",
+      "proxy_kind": "none",
+      "merged_from": ["Factory"],
+      "factory_creates": "Pair",
+      "factory_enumeration": "event"
+    },
+    {
+      "unit_id": "Pair",
+      "node_type": "unknown",
+      "proxy_kind": "none",
+      "merged_from": ["Pair"],
+      "factory_of": "Factory"
+    }
+  ]
+}

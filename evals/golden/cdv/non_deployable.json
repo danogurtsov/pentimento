@@ -1,0 +1,8 @@
+{
+  "fixture_dir": "tests/fixtures/non_deployable",
+  "visibility": "private",
+  "expected_units": [
+    { "unit_id": "PublicLib", "node_type": "unknown", "proxy_kind": "none", "merged_from": ["PublicLib"] },
+    { "unit_id": "Thing", "node_type": "unknown", "proxy_kind": "none", "merged_from": ["Thing"] }
+  ]
+}

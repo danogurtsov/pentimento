@@ -1,0 +1,13 @@
+{
+  "fixture_dir": "tests/fixtures/singleton",
+  "visibility": "private",
+  "expected_units": [
+    {
+      "unit_id": "Singleton",
+      "node_type": "unknown",
+      "proxy_kind": "none",
+      "merged_from": ["Singleton"],
+      "logical_entity_creator": "createMarket"
+    }
+  ]
+}

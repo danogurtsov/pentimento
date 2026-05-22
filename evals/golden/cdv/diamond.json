@@ -1,0 +1,13 @@
+{
+  "fixture_dir": "tests/fixtures/diamond",
+  "visibility": "private",
+  "expected_units": [
+    {
+      "unit_id": "Diamond",
+      "node_type": "token",
+      "proxy_kind": "diamond",
+      "merged_from": ["Diamond", "TokenFacet", "OwnershipFacet"],
+      "merged_facets": ["OwnershipFacet", "TokenFacet"]
+    }
+  ]
+}

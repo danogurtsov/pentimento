@@ -1,0 +1,12 @@
+{
+  "fixture_dir": "tests/fixtures/dispatcher",
+  "visibility": "private",
+  "expected_units": [
+    {
+      "unit_id": "Core",
+      "node_type": "token",
+      "proxy_kind": "dispatcher",
+      "merged_from": ["Core", "CoreExt"]
+    }
+  ]
+}

@@ -1,0 +1,193 @@
+{
+  "source": {
+    "repo": "https://github.com/SunWeb3Sec/DeFiVulnLabs",
+    "commit": "f61f6ee5c3f89eb7685030647f8df19997596f8b",
+    "license": "none \u2014 no LICENSE file in the upstream repo, NOT vendored; referenced directly from _external/DeFiVulnLabs/ (gitignored, fetched by scripts/fetch_fixtures.sh)",
+    "visibility": "public \u2014 [contamination-risk] caveat applies, same as every other public source in this corpus",
+    "note": "This corpus powers evals/run_detection_regression.py, the automated regression gate for DETECTION QUALITY specifically (CDV structural correctness already had its own gate in evals/run_evals.py). Coverage grew from an initial 5-fixture slice to 27 fixtures (5 original + 22 more), each ground-truth description read and verified from the fixture's OWN source code, not the upstream README alone \u2014 one entry ('transient-storage-misuse') had an unverified external-incident attribution caught and removed during review, keeping the discipline of citing only what the source itself supports. Deliberately excludes: files needing solc <0.8.0 (Overflow/Overflow2/Invariant), files importing OpenZeppelin/other third-party libs (18 files, to avoid needing more submodules initialized), files whose vulnerable contract only exists as a live mainnet address with no in-repo source, and 2 files judged not to demonstrate a real, consequential bug (ApproveScam.sol is social engineering, not a code defect; Selfdestruct2.sol has no funds or invariant at stake). One more exclusion found while actually running the regression (not a pre-planned skip): transient-storage-misuse needs solc --evm-version cancun for EIP-1153 tstore/tload to resolve, which adapters/solc_adapter.py::SolcAdapter.compile() has no parameter for yet \u2014 a real, small, named CDV-converter gap, kept out of scope here rather than folded silently into this ground truth set."
+  },
+  "cases": [
+    {
+      "id": "defivulnlabs-reentrancy",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Reentrancy.sol",
+      "contract_name": "EtherStore",
+      "vuln_class": "reentrancy",
+      "description": "EtherStore.withdrawFunds() sends ETH via a low-level call to msg.sender BEFORE decrementing balances[msg.sender] \u2014 a classic checks-effects-interactions violation. An attacker contract's own receive() can re-enter withdrawFunds() before its balance is updated, draining more ETH than it ever deposited."
+    },
+    {
+      "id": "defivulnlabs-dos",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/DOS.sol",
+      "contract_name": "KingOfEther",
+      "vuln_class": "denial_of_service_unbounded_external_call",
+      "description": "KingOfEther.claimThrone() refunds the previous king via a low-level call() and REQUIRES that refund to succeed (require(sent, ...)). If the previous king is a contract whose receive()/fallback() reverts (or burns gas), claimThrone() can never succeed again for anyone \u2014 the contract is permanently denial-of-serviced by whichever attacker last became king."
+    },
+    {
+      "id": "defivulnlabs-randomness",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Randomness.sol",
+      "contract_name": "GuessTheRandomNumber",
+      "vuln_class": "weak_randomness",
+      "description": "GuessTheRandomNumber.guess() derives its 'random' answer from keccak256(blockhash(block.number-1), block.timestamp) \u2014 both values are fully known/computable on-chain at call time. Any contract can compute the same value in the same call and win deterministically, defeating the intended randomness."
+    },
+    {
+      "id": "defivulnlabs-selfdestruct",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Selfdestruct.sol",
+      "contract_name": "EtherGame",
+      "vuln_class": "forced_ether_via_selfdestruct",
+      "description": "EtherGame.deposit() uses address(this).balance directly (rather than an internal accounting variable) to track total deposits against a fixed targetAmount. An attacker can force arbitrary ETH into the contract via selfdestruct(address) (which bypasses receive()/fallback() entirely), pushing the balance above targetAmount and permanently breaking the deposit invariant, denial-of-servicing future legitimate deposits."
+    },
+    {
+      "id": "defivulnlabs-delegatecall",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Delegatecall.sol",
+      "contract_name": "Proxy",
+      "vuln_class": "delegatecall_storage_collision",
+      "description": "Proxy.fallback() blindly delegatecalls arbitrary msg.data into the Delegate contract's code. Delegate.pwn() writes to its own 'owner' variable at storage slot 0 \u2014 since delegatecall executes in the CALLER's (Proxy's) storage context, and Proxy's own 'owner' variable also happens to occupy slot 0, calling pwn() through the proxy overwrites Proxy.owner itself, letting any caller take ownership of the Proxy contract."
+    },
+    {
+      "id": "defivulnlabs-array-deletion",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Array-deletion.sol",
+      "contract_name": "ArrayDeletionBug",
+      "vuln_class": "array_deletion_leaves_dangling_slot",
+      "description": "ArrayDeletionBug.deleteElement(index) calls delete myArray[index], which only resets that slot to its zero value but does NOT shrink the array or shift subsequent elements \u2014 myArray.length stays 5 and a stale zero occupies the deleted slot's position. Callers relying on getLength() or on iterating myArray see a gap-containing array instead of a compacted one, unlike FixedArrayDeletion.deleteElement(), which swaps in the last element and pop()s."
+    },
+    {
+      "id": "defivulnlabs-backdoor-assembly",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Backdoor-assembly.sol",
+      "contract_name": "LotteryGame",
+      "vuln_class": "inline_assembly_access_control_backdoor",
+      "description": "LotteryGame.pickWinner(random) is gated by modifier safeCheck, which uses inline assembly (sload(2)) to read the admin address directly out of storage slot 2 rather than a named check, then only lets msg.sender == admin execute the function body; when it matches, pickWinner writes storage slot 1 (the winner variable) via inline assembly (sstore(1, random)) with the caller-supplied address instead of any real randomness. Any non-admin caller's call is silently swallowed by safeCheck's else branch (it just logs via getkWinner() and returns without reverting), while admin can call pickWinner(anyAddress) at will to set winner to anything and drain the prize \u2014 a hidden, assembly-obscured admin backdoor disguised as a public 'pick a winner' function, with no explicit setWinner() for auditors to flag."
+    },
+    {
+      "id": "defivulnlabs-bypass-contract-check",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Bypasscontract.sol",
+      "contract_name": "Target",
+      "vuln_class": "contract_check_bypass_via_constructor",
+      "description": "Target.isContract(account) (used by protected()'s require(!isContract(msg.sender))) relies on extcodesize(account) being greater than 0 to detect a caller that is a contract. Attack's constructor calls Target(_target).protected() from WITHIN its own constructor \u2014 at that point Attack's own bytecode has not yet been stored on-chain, so extcodesize(address(this)) returns 0 even though msg.sender genuinely is a contract, letting Attack bypass the 'no contract allowed' check and flip Target.pwned to true."
+    },
+    {
+      "id": "defivulnlabs-data-location",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/DataLocation.sol",
+      "contract_name": "Array",
+      "vuln_class": "memory_vs_storage_reference_bug",
+      "description": "Array.updaterewardDebt(amount) declares `UserInfo memory user = userInfo[msg.sender]` \u2014 copying the struct into MEMORY instead of referencing STORAGE \u2014 then sets user.rewardDebt = amount on that memory copy. Because it's a memory copy, the write never touches the userInfo mapping in storage and is discarded when the function returns, so the caller's rewardDebt silently never updates, unlike fixedupdaterewardDebt(), which declares `UserInfo storage user = userInfo[msg.sender]` and does persist the change."
+    },
+    {
+      "id": "defivulnlabs-divide-before-multiply",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Divmultiply.sol",
+      "contract_name": "Miscalculation",
+      "vuln_class": "divide_before_multiply_precision_loss",
+      "description": "Miscalculation.price(price, discount) computes (price / 100) * discount \u2014 dividing BEFORE multiplying. Because Solidity integer division truncates, any price under 100 truncates price/100 to 0 before the multiplication ever runs, so price(80, 90) returns 0 instead of the mathematically correct 72 that Calculation.price() (which computes (price * discount) / 100, multiplying first) produces for the same inputs."
+    },
+    {
+      "id": "defivulnlabs-hash-collision",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Hash-collisions.sol",
+      "contract_name": "HashCollisionBug",
+      "vuln_class": "encodepacked_hash_collision",
+      "description": "HashCollisionBug.createHash() derives a balances[] mapping key via keccak256(abi.encodePacked(_string1, _string2)); abi.encodePacked's non-standard packed encoding has no length delimiters between dynamic arguments, so distinct pairs like ('AAA','BBB') and ('AA','ABBB') both concatenate to the identical bytes 'AAABBB' and hash identically. Because deposit() keys balances[] purely by that hash, two depositors with different but colliding (_string1,_string2) inputs collide on the same storage slot: whichever pair deposits first permanently blocks every other colliding pair from ever depositing (their calls revert on require(balances[hash]==0)), and without that guard the later deposit would instead silently merge into the earlier depositor's balance."
+    },
+    {
+      "id": "defivulnlabs-precision-loss",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Precision-loss.sol",
+      "contract_name": "SimplePool",
+      "vuln_class": "precision_loss_rounding_to_zero",
+      "description": "SimplePool.getCurrentReward() computes _reward = (totalDebt * _timeDelta) / (365 days * 1e18). With totalDebt = 10000e6 (a 6-decimal, USDC-scaled debt figure) and _timeDelta = 1 second, the numerator (10000e6 * 1) is far smaller than the denominator (31_536_000e18), so integer division truncates the result to exactly 0 \u2014 the accrued reward silently rounds all the way down to zero instead of accruing any nonzero amount, because the token's decimal scale was never accounted for against the per-second annualized divisor."
+    },
+    {
+      "id": "defivulnlabs-private-data",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Privatedata.sol",
+      "contract_name": "Vault",
+      "vuln_class": "private_data_readable_via_storage_slot",
+      "description": "Vault stores `password` as a private uint256 in slot 0 and pushes a User{id,password} struct into the `users` array (slot 1) inside its constructor. Despite `password` being declared private, vm.load(address(VaultContract), bytes32(0)) reads slot 0 directly and returns the plaintext password, and VaultContract.getArrayLocation() (keccak256(abi.encodePacked(slot)) + index*elementSize) computes the exact slot holding users[0].password so it too can be read via vm.load \u2014 Solidity's `private` keyword only hides a variable from other contracts' Solidity-level access, not from anyone reading the contract's raw on-chain storage slots."
+    },
+    {
+      "id": "defivulnlabs-signature-replay",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/SignatureReplay.sol",
+      "contract_name": "SixEyeToken",
+      "vuln_class": "signature_replay",
+      "description": "SixEyeToken.transferProxy() reads `nonce = nonces[_from]` and folds it into the signed hash keccak256(abi.encodePacked(_from,_to,_value,_feeUgt,nonce)), but \u2014 unlike TokenWhale's otherwise-identical transferProxy(), which does execute `nonces[_from] = nonce + 1` after a successful transfer \u2014 SixEyeToken never updates the nonces mapping. The same signed (v,r,s) tuple therefore keeps passing ecrecover verification against the same unchanged nonce and can drain balanceOf[_from] every time it's replayed, as demonstrated by the test calling transferProxy() twice with identical signature parameters and succeeding both times."
+    },
+    {
+      "id": "defivulnlabs-signature-replay-nba",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/SignatureReplayNBA.sol",
+      "contract_name": "NBA",
+      "vuln_class": "signature_replay",
+      "description": "NBA.verify() reconstructs a message hash from the vData allowlist fields (from/start/end/eth_price/dust_price/max_mint/mint_free) and recovers the signer via ecrecover, requiring it match the fixed `signer` address, but mint_approved() never records that a given signature has already been consumed \u2014 there is no nonce and no used-signature mapping. A single valid allowlist signature (the test replays one captured from a real mainnet mint transaction) can therefore be submitted through mint_approved() an unlimited number of times to mint far more NFTs than the signer ever authorized, mirroring the real 2022 NBA 'Association NFT' allowlist-replay incident."
+    },
+    {
+      "id": "defivulnlabs-storage-collision",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Storage-collision.sol",
+      "contract_name": "Proxy",
+      "vuln_class": "delegatecall_storage_collision",
+      "description": "Proxy.testcollision() delegatecalls into Logic.foo(address), which writes Logic's own `GuestAddress` state variable \u2014 but GuestAddress occupies storage slot 0 in Logic, the exact same slot Proxy uses for its own `implementation` address. Because delegatecall executes Logic's code inside Proxy's storage context, calling testcollision() overwrites Proxy.implementation with whatever address foo() assigns to GuestAddress, corrupting the proxy's own pointer to its logic contract."
+    },
+    {
+      "id": "defivulnlabs-struct-deletion",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Struct-deletion.sol",
+      "contract_name": "StructDeletionBug",
+      "vuln_class": "incomplete_struct_deletion_mapping_residue",
+      "description": "StructDeletionBug.deleteStruct(structId) calls `delete myStructs[structId]` on a struct that contains a nested mapping (`mapping(uint256 => bool) flags`). Solidity's delete on a struct only resets its non-mapping members (here `id` goes back to 0) \u2014 it cannot clear a nested mapping, since a mapping has no enumerable key set to iterate. Any flags previously set via addStruct() (e.g. flags[10] = true) remain readable through getStruct() even after the 'deletion', unlike FixedStructDeletion.deleteStruct(), which explicitly loops `delete myStruct.flags[i]` before deleting the struct itself."
+    },
+    {
+      "id": "defivulnlabs-unsafe-call",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/UnsafeCall.sol",
+      "contract_name": "TokenWhale",
+      "vuln_class": "unchecked_low_level_call_injection",
+      "description": "TokenWhale.approveAndCallcode(_spender, _value, _extraData) sets an allowance and then executes `_spender.call(_extraData)` with fully attacker-controlled calldata and no restriction on which function selector or arguments it encodes. By passing address(TokenWhaleContract) itself as _spender and abi.encodeWithSignature('transfer(address,uint256)', alice, 1000) as _extraData, an attacker makes TokenWhale call its own transfer() function with msg.sender resolving to TokenWhaleContract itself, so `balanceOf[msg.sender] -= value` debits the contract's own token balance and credits the attacker \u2014 turning the unrestricted low-level call into a way to self-authorize arbitrary fund movement."
+    },
+    {
+      "id": "defivulnlabs-visibility",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/Visibility.sol",
+      "contract_name": "ownerGame",
+      "vuln_class": "missing_access_control",
+      "description": "ownerGame.changeOwner(address _new) is declared `public` with no onlyOwner modifier or any other access-control check \u2014 any external account can call it directly to overwrite the `owner` state variable to an address of their choosing, fully taking over the contract with a single unrestricted call."
+    },
+    {
+      "id": "defivulnlabs-ecrecover-zero-address",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/ecrecover.sol",
+      "contract_name": "SimpleBank",
+      "vuln_class": "ecrecover_zero_address_signature_bypass",
+      "description": "SimpleBank.transfer() recovers a signer via ecrecover(_hash, _v, _r, _s) and requires signer == Admin, but Admin is never assigned anywhere and defaults to address(0). ecrecover returns address(0) whenever it's handed a malformed signature \u2014 in particular whenever _v is anything other than 27 or 28 (the test deliberately passes v = 29) \u2014 so an attacker can submit garbage r/s values with v = 29, have ecrecover return address(0), and satisfy signer == Admin purely because Admin was likewise left at its zero-value default, letting transfer() credit balances[_to] with no genuine signature at all."
+    },
+    {
+      "id": "defivulnlabs-fee-on-transfer",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/fee-on-transfer.sol",
+      "contract_name": "VulnVault",
+      "vuln_class": "fee_on_transfer_token_incompatibility",
+      "description": "VulnVault.deposit(amount) calls token.transferFrom(msg.sender, address(this), amount) and then unconditionally credits `balances[msg.sender] += amount` using the caller-specified amount rather than measuring what the vault actually received. Against STA \u2014 a deflationary token whose transfer()/transferFrom() burn a percentage via cut() before crediting the recipient \u2014 depositing 10000 STA leaves the vault holding less than 10000 STA while VulnVault still records a full 10000 balance for the depositor, unlike Vault.deposit(), which snapshots token.balanceOf(address(this)) before and after the transfer and credits only the actual delta."
+    },
+    {
+      "id": "defivulnlabs-gas-price",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/gas-price.sol",
+      "contract_name": "GasReimbursement",
+      "vuln_class": "tx_gasprice_manipulation",
+      "description": "GasReimbursement.calculateTotalFee() computes (gasUsed + GAS_OVERHEAD_NATIVE) * tx.gasprice, and executeTransfer() pays exactly that amount out of the contract's own ETH balance via _nativeTransferExec. Since tx.gasprice is fully attacker-controlled (any caller can set an arbitrarily high gas price on their own transaction, as the test does by invoking forge with --gas-price), a caller can inflate their own tx.gasprice far above the real market rate purely to make calculateTotalFee() return an inflated reimbursement figure, then have executeTransfer() pay out that inflated amount from the contract's balance regardless of what gas the caller actually spent."
+    },
+    {
+      "id": "defivulnlabs-payable-transfer",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/payable-transfer.sol",
+      "contract_name": "SimpleBank",
+      "vuln_class": "unsafe_eth_transfer_gas_stipend",
+      "description": "SimpleBank.withdraw(amount) sends ETH to msg.sender via payable(msg.sender).transfer(amount), which hard-codes a fixed 2300-gas stipend for the recipient's fallback/receive. If msg.sender is a contract whose receive() does more than trivial bookkeeping within that stipend \u2014 such as ContractTest's own receive(), which calls back into SimpleBankContract.deposit{value: 1 ether}() \u2014 the forwarded call runs out of gas, .transfer() itself reverts, and withdraw() can never succeed for that caller, unlike FixedSimpleBank.withdraw(), which uses a low-level .call{value: amount}(\"\") forwarding all remaining gas and checks the boolean success return instead."
+    },
+    {
+      "id": "defivulnlabs-return-vs-break",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/return-break.sol",
+      "contract_name": "BuggyBankManager",
+      "vuln_class": "incorrect_loop_early_return",
+      "description": "BuggyBankManager.removeBanksWithReturn(banksToRemove) iterates `banks` in an outer loop and `banksToRemove` in a nested inner loop; when it finds a match it calls _removeBank(i) and then executes a bare `return;`, which exits the ENTIRE function rather than just the inner loop. As a result, only the very first matching bank is ever removed and every other bank listed in banksToRemove is silently left untouched \u2014 confirmed by the test removing all 3 seeded banks but the buggy manager's bank count only ever dropping by one \u2014 unlike FixedBankManager.removeBanksWithBreak(), which uses `break` to exit only the inner loop so the outer loop keeps processing the rest."
+    },
+    {
+      "id": "defivulnlabs-self-transfer",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/self-transfer.sol",
+      "contract_name": "SimpleBank",
+      "vuln_class": "missing_self_transfer_check",
+      "description": "SimpleBank.transfer(_from, _to, _amount) reads `_fromBalance` and `_toBalance` from storage into local variables BEFORE writing either one back, then inside an unchecked block does `_balances[_from] = _fromBalance - _amount` followed by `_balances[_to] = _toBalance + _amount`. When _from == _to, both statements target the SAME storage slot using the stale pre-transfer local values, so the second write (_toBalance + _amount, i.e. the ORIGINAL balance plus amount) simply overwrites the first \u2014 the account's balance increases by _amount out of thin air instead of staying unchanged, as the test confirms by calling transfer(this, this, 10000) twice and inflating the balance rather than leaving it net-zero, unlike FixedSimpleBank.transfer(), which requires _from != _to."
+    },
+    {
+      "id": "defivulnlabs-txorigin",
+      "fixture_path": "_external/DeFiVulnLabs/src/test/txorigin.sol",
+      "contract_name": "Wallet",
+      "vuln_class": "tx_origin_authentication",
+      "description": "Wallet.transfer(_to, _amount) authorizes the caller with require(tx.origin == owner, \"Not owner\") instead of checking msg.sender. When owner (Alice) is tricked into calling Attack.attack() \u2014 even though the immediate msg.sender inside Wallet.transfer() is the Attack contract, not Alice directly \u2014 tx.origin for the whole outer call chain still resolves to Alice, so the check passes and Attack routes Wallet's entire ETH balance to itself via wallet.transfer(owner, address(wallet).balance), where `owner` is Attack's own deployer (Eve)."
+    }
+  ]
+}

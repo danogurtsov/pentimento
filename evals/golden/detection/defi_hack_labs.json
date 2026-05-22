@@ -1,0 +1,84 @@
+{
+  "source": {
+    "repo": "https://github.com/SunWeb3Sec/DeFiHackLabs",
+    "commit": "3736721a2859fb21b79fc32adaae8dd2d556d9a0",
+    "license": "Apache-2.0 (checked: LICENSE file present, unlike DeFiVulnLabs) — still fetched not vendored, same pinned-commit reproducibility principle regardless",
+    "visibility": "public",
+    "contamination_note": "public, widely-referenced repo (6k+ stars, grounds several real tools in our own corpus — see evals/golden/detection/README.md) — treat any recall measured against it as [contamination-risk], not proof of novel-detection capability. Corrected priority over teaching-CTF repos (Ethernaut/DVD): see README's \"Why not Ethernaut\" section.",
+    "note": "909 .sol fixtures total as of this commit (far more than the ~550-681 cited in earlier research rounds — the repo keeps growing monthly, e.g. src/test/2026-08/). This manifest catalogs 8, not a forced 10 — dropped 2 candidates (ValueDefi/Cover) after checking their source: only a bare testExploit()/test() function and fork block were confirmable, no independently verifiable root-cause detail, so excluded rather than guessed at."
+  },
+  "cases": [
+    {
+      "id": "dhl-euler",
+      "file": "src/test/2023-03/Euler_exp.sol",
+      "date": "2023-03",
+      "vuln_class": "self-liquidation-donation-exploit",
+      "description": "Euler Finance: flash loan 30M DAI -> deposit+leverage via mint() -> donateToReserves() deliberately worsens own health factor below liquidation threshold -> attacker's own second account liquidates the now-undercollateralized position at a discount for a large eDAI/dDAI mismatch. Root cause per file: donateToReserves() had no check against self-inflicted insolvency.",
+      "verified_from_source": true,
+      "source_richness": "high — file has @Analysis/@TX headers with tweet + Etherscan tx links and a 10-step summary"
+    },
+    {
+      "id": "dhl-nomad-bridge",
+      "file": "src/test/2022-08/NomadBridge_exp.sol",
+      "date": "2022-08",
+      "vuln_class": "bridge-uninitialized-trusted-root",
+      "description": "Nomad Bridge: a Replica contract's trusted root was mistakenly initialized to 0x00 (a value that trivially \"proves\" any message), so ANY calldata could be replayed/crafted to withdraw funds — became a free-for-all copy-paste exploit once discovered. ~$152M lost per the file's own @KeyInfo header.",
+      "verified_from_source": true,
+      "source_richness": "high — @KeyInfo header cites total loss, proxy/logic addresses, and the Nomad audit report finding (QSP-19) that had flagged this exact issue"
+    },
+    {
+      "id": "dhl-bzx-2020",
+      "file": "src/test/2020-09/bzx_exp.sol",
+      "date": "2020-09",
+      "vuln_class": "oracle-manipulation",
+      "description": "bZx (original, one of the earliest famous flash-loan oracle-manipulation attacks) — file cites attacker/vulnerable-contract/attack-tx Etherscan links directly.",
+      "verified_from_source": true,
+      "source_richness": "medium — addresses and tx cited, no step-by-step summary in this particular file"
+    },
+    {
+      "id": "dhl-bzx-2023",
+      "file": "src/test/2023-12/bZx_exp.sol",
+      "date": "2023-12",
+      "vuln_class": "unspecified-see-postmortem-link",
+      "description": "A later, separate bZx-related incident (~$208K per file) — file cites two BlockSec-explorer attack-tx links and a postmortem thread; mechanism not independently re-derived from the contract body for this catalog entry.",
+      "verified_from_source": true,
+      "source_richness": "medium — loss amount and tx links confirmed, root-cause mechanism [NOT_COVERED] in this pass"
+    },
+    {
+      "id": "dhl-harvest-finance",
+      "file": "src/test/2020-10/HarvestFinance_exp.sol",
+      "date": "2020-10",
+      "vuln_class": "oracle-manipulation-flash-loan",
+      "description": "Harvest Finance: setup wires a Curve y-pool and Uniswap V2 ETH/USDC+ETH/USDT LPs alongside Harvest's own USDC pool — confirms the well-known flash-loan Curve-pool price manipulation shape, though the exact step sequence wasn't re-derived line-by-line for this catalog entry.",
+      "verified_from_source": true,
+      "source_richness": "medium — confirmed via constructor/state wiring, not a written summary in the file itself"
+    },
+    {
+      "id": "dhl-inverse-finance",
+      "file": "src/test/2022-06/InverseFinance_exp.sol",
+      "date": "2022-06",
+      "vuln_class": "oracle-manipulation",
+      "description": "Inverse Finance: wires multiple Curve/Vyper pool contracts (curve3pool, yvCurve3Crypto, curveRegistry) and forks mainnet at a specific historical block (14,972,418) — confirms a Curve-pool-pricing-based exploit shape.",
+      "verified_from_source": true,
+      "source_richness": "medium — auto-generated file (abi-to-sol), confirmed via wiring + fork block, no written summary"
+    },
+    {
+      "id": "dhl-rari",
+      "file": "src/test/2022-04/Rari_exp.sol",
+      "date": "2022-04",
+      "vuln_class": "flash-loan-reentrancy",
+      "description": "Rari Capital: `testExploit()` takes a `vault.flashLoan(...)` and implements `receiveFlashLoan(...)` — confirms a flash-loan-borrowed callback shape, consistent with the publicly documented Fuse pools cross-contract reentrancy incident, though the reentrant call path wasn't re-traced line-by-line for this entry.",
+      "verified_from_source": true,
+      "source_richness": "medium — auto-generated file, confirmed via flashLoan/receiveFlashLoan function presence"
+    },
+    {
+      "id": "dhl-qubit",
+      "file": "src/test/2022-01/Qubit_exp.sol",
+      "date": "2022-01",
+      "vuln_class": "bridge-deposit-validation",
+      "description": "Qubit Finance (QBridge): file declares two overloaded `deposit(...)` interface signatures on the bridge contract — consistent with the publicly documented missing-validation-on-a-legacy-deposit-overload root cause, though not independently re-derived from the exploit body for this entry.",
+      "verified_from_source": true,
+      "source_richness": "medium — confirmed via interface declarations, no written summary in the file"
+    }
+  ]
+}

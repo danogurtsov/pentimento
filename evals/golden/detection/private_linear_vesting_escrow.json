@@ -1,0 +1,22 @@
+{
+  "source": {
+    "repo": "none — hand-authored this session, never published anywhere",
+    "commit": "n/a",
+    "license": "n/a — this repo's own code, not a third-party fixture",
+    "visibility": "private — the ONE entry in this corpus with no [contamination-risk] caveat",
+    "note": "Every other source in evals/golden/detection/ is public (a real audit report, a real contest finding, a public synthetic-fixture repo) — every recall claim measured against them carries an explicit [contamination-risk] caveat: a model could have seen the exact case during pretraining, so a hit isn't proof of novel reasoning. This file exists specifically to close that gap, named as a real limitation in evals/golden/detection/README.md's public/private split. `LinearVestingEscrow.sol` was designed and written from scratch, with ONE deliberately inserted, non-obvious bug not copied from any known incident or public fixture. The person running the detection knows the answer, obviously — but the MODEL under test does not and cannot have seen this exact file before, which is the actual property [contamination-risk] is about. Once this repository is pushed publicly, this specific case stops being contamination-free for any model trained after that point — it remains valid evidence for every model already trained before then."
+  },
+  "cases": [
+    {
+      "id": "private-linear-vesting-escrow-01",
+      "finding_id": "LVE-01",
+      "title": "sweepUnvested() overwrites totalAmount with vestedAmount(), corrupting all subsequent vesting math",
+      "severity": "critical",
+      "status": "confirmed by an executable Foundry PoC (test/LinearVestingEscrowExploit.t.sol, passing)",
+      "vuln_class": "self-referential-formula-mutation",
+      "description": "LinearVestingEscrow.vestedAmount() computes `(s.totalAmount * elapsed) / s.duration`. sweepUnvested() sets `s.totalAmount = vestedAmount(beneficiary)` after a revocation, intending to shrink the grant down to exactly what had vested. But because vestedAmount()'s OWN formula re-reads `s.totalAmount` on every future call, and `elapsed`/`duration` stay fixed after revocation, a SINGLE, entirely intended-use sweep call already re-applies the SAME elapsed/duration fraction to the just-shrunk total — halving (in the 50%-elapsed case measured) the beneficiary's rightful, already-vested claimable balance, and transferring the difference to the admin as if it had never vested. A second sweep call (nothing prevents repeating it) halves it again. This is not a double-call edge case discovered by fuzzing a specific input — it is the FIRST, documented, intended admin action already producing an incorrect result, because the fix conflates 'freeze the vested AMOUNT' with 'replace the ORIGINAL total with the vested amount', when the formula needs the ORIGINAL total to keep computing correctly.",
+      "verified_from_source": true,
+      "source_richness": "high — the bug lives in this repo's own 91-line contract, executable PoC included (test/LinearVestingEscrowExploit.t.sol), exact numeric trace: grant 1000e18 over 1000s, revoke at 50% elapsed (vested=500e18, fully correct at this point) -> ONE sweepUnvested() call already reduces claimable() to 250e18 and transfers 500e18 to admin (correct) -> a SECOND sweepUnvested() call further reduces claimable() to 125e18 and transfers another 250e18 to admin (incorrect - only 500e18 was ever genuinely unvested, admin now holds 750e18)."
+    }
+  ]
+}
